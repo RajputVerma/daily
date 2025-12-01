@@ -1,0 +1,58 @@
+name: Daily Commit (Human Style)
+
+on:
+  schedule:
+    - cron: "15 5 * * *"  # runs daily at 5:15 UTC (10:45 IST)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Random delay to look human
+        run: |
+          delay=$(( RANDOM % 2400 ))  # up to 40 minutes
+          echo "Waiting for $delay seconds before acting..."
+          sleep $delay
+
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Maybe skip today
+        id: skipcheck
+        run: |
+          SKIP_CHANCE=$(( RANDOM % 5 ))  # 20% chance to skip
+          if [ $SKIP_CHANCE -eq 0 ]; then
+            echo "skip=yes" >> $GITHUB_OUTPUT
+          else
+            echo "skip=no" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Stop workflow if skipping today
+        if: steps.skipcheck.outputs.skip == 'yes'
+        run: echo "Skipping today's commit to stay natural."
+
+      - name: Make update
+        if: steps.skipcheck.outputs.skip == 'no'
+        run: |
+          export TZ='Asia/Kolkata'  # to use IST timing
+          messages=("Updated progress" "Minor change" "Noted work" "Small update" "Routine log" "Tracked activity" "Just a check-in" "Daily record")
+          msg=${messages[$RANDOM % ${#messages[@]}]}
+          timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+          echo "$msg on $timestamp" >> daily_update.txt
+
+      - name: Commit changes
+        if: steps.skipcheck.outputs.skip == 'no'
+        run: |
+          git config user.name "RajputVerma"
+          git config user.email "59683971+RajputVerma@users.noreply.github.com."
+          git add .
+          git commit -m "Update: $(date '+%Y-%m-%d')" || echo "Nothing to commit"
+
+      - name: Push changes
+        if: steps.skipcheck.outputs.skip == 'no'
+        run: git push
